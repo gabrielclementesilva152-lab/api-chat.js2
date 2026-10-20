@@ -18,23 +18,11 @@ export default async function handler(req, res) {
 
     const ai = new GoogleGenAI({ apiKey: apiKey });
 
-    // Converte e limpa as mensagens para garantir que o texto nunca vai como undefined
-    const contents = (messages || []).map(msg => {
-      let textContent = '';
-      
-      if (typeof msg.text === 'string') {
-        textContent = msg.text;
-      } else if (msg.parts && msg.parts[0] && msg.parts[0].text) {
-        textContent = msg.parts[0].text;
-      } else if (typeof msg === 'string') {
-        textContent = msg;
-      }
-
-      return {
-        role: msg.role === 'model' ? 'model' : 'user',
-        parts: [{ text: textContent }]
-      };
-    });
+    // Monta o formato correto aceito pelo Gemini
+    const contents = (messages || []).map(msg => ({
+      role: msg.role === 'model' ? 'model' : 'user',
+      parts: [{ text: msg.text || '' }]
+    }));
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -46,10 +34,12 @@ export default async function handler(req, res) {
       },
     });
 
-    return res.status(200).json(response);
+    // Pega o texto gerado da resposta
+    const replyText = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text || "Sem resposta.";
+
+    return res.status(200).json({ reply: replyText });
   } catch (error) {
     console.error("Erro na API:", error);
     return res.status(500).json({ error: { message: error.message || 'Erro interno no servidor.' } });
   }
 }
-
