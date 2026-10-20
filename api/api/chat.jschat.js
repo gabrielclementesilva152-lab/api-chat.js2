@@ -18,15 +18,27 @@ export default async function handler(req, res) {
 
     const ai = new GoogleGenAI({ apiKey: apiKey });
 
-    // Converte o histórico enviado do HTML para o formato exato que o Gemini espera
-    const formattedContents = messages.map(msg => ({
-      role: msg.role === 'model' ? 'model' : 'user',
-      parts: Array.isArray(msg.parts) ? msg.parts : [{ text: msg.text || String(msg) }]
-    }));
+    // Converte e limpa as mensagens para garantir que o texto nunca vai como undefined
+    const contents = (messages || []).map(msg => {
+      let textContent = '';
+      
+      if (typeof msg.text === 'string') {
+        textContent = msg.text;
+      } else if (msg.parts && msg.parts[0] && msg.parts[0].text) {
+        textContent = msg.parts[0].text;
+      } else if (typeof msg === 'string') {
+        textContent = msg;
+      }
+
+      return {
+        role: msg.role === 'model' ? 'model' : 'user',
+        parts: [{ text: textContent }]
+      };
+    });
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: formattedContents,
+      contents: contents,
       config: {
         systemInstruction: `Você é o Help, um tutor educacional socrático amigável para estudantes. 
         Sua missão é ensinar o aluno a pensar por conta própria. 
