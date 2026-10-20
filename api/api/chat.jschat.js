@@ -8,18 +8,25 @@ export default async function handler(req, res) {
   try {
     const { messages } = req.body;
 
-    // A Vercel vai ler a chave que você salvou no painel dela
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      return res.status(500).json({ error: { message: 'A chave GEMINI_API_KEY não foi encontrada nas variáveis de ambiente da Vercel.' } });
+      return res.status(500).json({ 
+        error: { message: 'A chave GEMINI_API_KEY não foi encontrada nas variáveis de ambiente da Vercel.' } 
+      });
     }
 
     const ai = new GoogleGenAI({ apiKey: apiKey });
 
+    // Converte o histórico enviado do HTML para o formato exato que o Gemini espera
+    const formattedContents = messages.map(msg => ({
+      role: msg.role === 'model' ? 'model' : 'user',
+      parts: Array.isArray(msg.parts) ? msg.parts : [{ text: msg.text || String(msg) }]
+    }));
+
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: messages,
+      contents: formattedContents,
       config: {
         systemInstruction: `Você é o Help, um tutor educacional socrático amigável para estudantes. 
         Sua missão é ensinar o aluno a pensar por conta própria. 
